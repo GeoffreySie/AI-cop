@@ -1,1 +1,9 @@
 jupyterlab>3.0
+fastapi
+uvicorn
+tensorflow
+scikit-learn
+pandas
+numpy
+pyqt5
+scipy

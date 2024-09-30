@@ -1,36 +1,61 @@
-from flask import Flask, request, render_template
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.responses import JSONResponse
 import pandas as pd
-from tensorflow.keras.models import load_model
+import numpy as np
 from sklearn.preprocessing import StandardScaler
+from tensorflow.keras.models import load_model
 
-app = Flask(__name__)
+# Create a FastAPI instance
+app = FastAPI()
 
-# Load the model and scaler
-vae = load_model('../model/vae_model.h5')
-scaler = StandardScaler()
+# Load the trained VAE model
+try:
+    vae_model = load_model("../../models/vae_model.h5")
+except Exception as e:
+    print(f"Error loading model: {e}")
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# Route for file upload and anomaly detection
+@app.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    if not file.filename.endswith(".csv"):
+        return HTTPException(status_code=400, detail="File type not supported. Please upload a .csv file.")
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return 'No file uploaded', 400
-    
-    file = request.files['file']
-    df = pd.read_csv(file)
+    try:
+        # Read the uploaded CSV file into a pandas DataFrame
+        df = pd.read_csv(file.file)
+        
+        # Check if the dataframe is empty or has incorrect columns
+        if df.empty:
+            return JSONResponse(status_code=400, content={"detail": "The uploaded CSV file is empty."})
+        
+        # Normalize the data using StandardScaler
+        scaler = StandardScaler()
+        scaled_data = scaler.fit_transform(df)
+        
+        # Pass the data through the VAE model
+        reconstructed_data = vae_model.predict(scaled_data)
+        
+        # Calculate the reconstruction error
+        error = np.mean(np.square(scaled_data - reconstructed_data), axis=1)
+        
+        # Set a threshold for anomalies (you may need to tune this)
+        threshold = 0.1
+        
+        # Identify anomalies
+        anomalies = error > threshold
+        anomaly_count = np.sum(anomalies)
+        total_count = len(anomalies)
+        
+        # Return results
+        return {
+            "anomalies_detected": int(anomaly_count),
+            "total_records": total_count,
+            "anomaly_percentage": round((anomaly_count / total_count) * 100, 2)
+        }
 
-    # Preprocess and predict
-    X = scaler.transform(df.drop('attack_type', axis=1))
-    X_reconstructed = vae.predict(X)
-    reconstruction_error = ((X - X_reconstructed) ** 2).mean(axis=1)
+    except Exception as e:
+        # Return an error response in case of an exception
+        return HTTPException(status_code=500, detail=f"An error occurred while processing the file: {str(e)}")
 
-    threshold = 0.01
-    anomalies = reconstruction_error > threshold
-
-    df['is_anomaly'] = anomalies
-    return df.to_html()
-
-if __name__ == '__main__':
-    app.run(debug=True)
+# To run FastAPI, use the following command:
+# uvicorn app:app --reload

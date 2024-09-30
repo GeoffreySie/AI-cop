@@ -2,3 +2,6 @@ Flask
 pandas
 tensorflow
 scikit-learn
+uvicorn
+requests
+PyQt5
