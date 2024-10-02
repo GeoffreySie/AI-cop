@@ -1,9 +1,9 @@
 # Project Name
-This project is ________. (Describe the main goals of the project. Limit to 1-2 sentences)
+This project is AI Cop, a prototype cybersecurity detection system developed on Nvidia AI Workbench.
 
 ## Description
-Optional section to provide a more detailed overview of the project.
+The application allows users to upload a dataset file, which is then processed by a pre-trained VAE model and returned with a score determining if there is intrusion in a network.
 
 ## Getting Started
-Optional section to summarize important steps and how to use the project & apps in the project
-
+python app.py to run the backend api
+python gui.py to run the GUI
